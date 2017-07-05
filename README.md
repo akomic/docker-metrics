@@ -44,7 +44,10 @@ print(mem.stats)
 
 To look for sysfs in another dir:
 
+```python
+#!/usr/bin/env python3
 containerMetrics(
   containerId='...',
   sysfs='/mySysFsDir'
 )
+```
