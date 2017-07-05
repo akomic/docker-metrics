@@ -1,5 +1,6 @@
 *~
 dist
+build
 MANIFEST
 **/__pycache__
 test.py

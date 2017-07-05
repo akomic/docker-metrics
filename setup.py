@@ -5,7 +5,7 @@ from distutils.core import setup
 
 setup(
     name='docker-metrics',
-    packages=['docker-metrics'],
+    packages=['dockermetrics'],
     version='0.0.1',
 
     description='Implementation of Docker Metrics from sysfs',
