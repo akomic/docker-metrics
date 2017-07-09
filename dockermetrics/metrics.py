@@ -1,10 +1,11 @@
 import os
 import json
+import time
 import logging
 
 logger = logging.getLogger(__name__)
 
-__version__ = '0.0.1'
+__version__ = '0.0.3'
 
 
 def get_data_single(filePath):
@@ -34,10 +35,24 @@ def get_data_multi(filePath):
         raise
 
 
+def get_data_selective(filePath, keyIndex=1, valIndex=2):
+    try:
+        ret = {}
+        with open(filePath) as f:
+            for line in f:
+                chunks = line.strip().split(' ')
+                if len(chunks) >= (valIndex + 1):
+                    ret[chunks[keyIndex]] = chunks[valIndex]
+        return ret
+    except Exception:
+        logger.exception(u'Error accessing sysfs file')
+        raise
+
+
 class containerCPU(object):
-    def __init__(self, containerId, sysfs='/sys',
-                 cpuAcctPath='fs/cgroup/cpuacct/docker/',
-                 cpuPath='fs/cgroup/cpu/docker/'):
+    def __init__(self, containerId, sysfs='/sys/fs/cgroup',
+                 cpuAcctPath='cpuacct/docker/',
+                 cpuPath='cpu/docker/'):
         self.containerId = containerId
         self.cpuacct_path = os.path.join(sysfs, cpuAcctPath, str(containerId))
         self.cpu_path = os.path.join(sysfs, cpuPath, str(containerId))
@@ -69,8 +84,8 @@ class containerCPU(object):
 
 
 class containerMEM(object):
-    def __init__(self, containerId, sysfs='/sys',
-                 memPath='fs/cgroup/memory/docker/'):
+    def __init__(self, containerId, sysfs='/sys/fs/cgroup',
+                 memPath='memory/docker/'):
         self.containerId = containerId
         self.path = os.path.join(sysfs, memPath, str(containerId))
 
@@ -104,8 +119,54 @@ class containerMEM(object):
         return json.dumps(self.stats)
 
 
+class containerIO(object):
+    def __init__(self, containerId, sysfs='/sys/fs/cgroup',
+                 ioPath='blkio/docker/'):
+        self.containerId = containerId
+        self.path = os.path.join(sysfs, ioPath, str(containerId))
+
+        self.stats = {
+            # Number of bytes transferred to/from the disk
+            'service_bytes_read': 0,
+            'service_bytes_write': 0,
+            'service_bytes_sync': 0,
+            'service_bytes_async': 0,
+            'service_bytes_total': 0,
+            # Number of IOs (bio) issued to the disk by the group
+            'serviced_read': 0,
+            'serviced_write': 0,
+            'serviced_sync': 0,
+            'serviced_async': 0,
+            'serviced_total': 0,
+        }
+
+        self.__collect()
+
+    def __collect(self):
+        service_bytes = get_data_selective(
+            os.path.join(self.path, 'blkio.throttle.io_service_bytes'))
+
+        self.stats['service_bytes_read'] = service_bytes['Read']
+        self.stats['service_bytes_write'] = service_bytes['Write']
+        self.stats['service_bytes_sync'] = service_bytes['Sync']
+        self.stats['service_bytes_async'] = service_bytes['Async']
+        self.stats['service_bytes_total'] = service_bytes['Total']
+
+        serviced = get_data_selective(
+            os.path.join(self.path, 'blkio.throttle.io_serviced'))
+
+        self.stats['serviced_read'] = serviced['Read']
+        self.stats['serviced_write'] = serviced['Write']
+        self.stats['serviced_sync'] = serviced['Sync']
+        self.stats['serviced_async'] = serviced['Async']
+        self.stats['serviced_total'] = serviced['Total']
+
+    def dump(self):
+        return json.dumps(self.stats)
+
+
 class containerMetrics(object):
-    def __init__(self, containerId, sysfs='/sys'):
+    def __init__(self, containerId, sysfs='/sys/fs/cgroup'):
         self.containerId = containerId
         self.sysfs = sysfs
         self.stats = {}
@@ -114,12 +175,14 @@ class containerMetrics(object):
 
     def __collect(self):
         cpu = containerCPU(containerId=self.containerId, sysfs=self.sysfs)
-
         mem = containerMEM(containerId=self.containerId, sysfs=self.sysfs)
+        io = containerIO(containerId=self.containerId, sysfs=self.sysfs)
 
         self.stats = {
             'cpu': cpu.stats,
-            'mem': mem.stats
+            'mem': mem.stats,
+            'io': io.stats,
+            'clock': time.time()
         }
 
     def dump(self):
