@@ -1,4 +1,5 @@
 import os
+import json
 from .toolbox import *
 
 
@@ -31,8 +32,9 @@ class containerMEM(object):
         self.stats['limit'] = get_data_single(
             os.path.join(self.path, 'memory.limit_in_bytes'))
         # If number is too high, limit is not set at all
-        if self.stats['limit'] > 1099511627776:
-            self.stats['limit'] = 0
+        if (self.stats['limit'][1] == 0 and
+           self.stats['limit'][0] > 1099511627776):
+            self.stats['limit'] = (0, 0)
 
     def dump(self):
         return json.dumps(self.stats)

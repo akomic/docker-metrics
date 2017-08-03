@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 
-from distutils.core import setup
-# you can also import from setuptools
+from setuptools import setup
 
 setup(
     name='docker-metrics',
     packages=['dockermetrics'],
-    version='0.0.4',
+    version='0.0.5',
 
     description='Implementation of Docker Metrics from sysfs',
     long_description=(

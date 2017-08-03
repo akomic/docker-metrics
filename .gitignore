@@ -4,3 +4,4 @@ build
 MANIFEST
 **/__pycache__
 test.py
+docker_metrics.egg-info/

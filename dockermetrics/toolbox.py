@@ -9,36 +9,56 @@ def get_data_single(filePath):
             data = f.read().strip()
             if data.isdigit():
                 data = int(data)
-            return data
-    except Exception:
-        logger.exception(u'Error accessing sysfs file')
-        raise
+            return data, 0
+    except Exception as e:
+        errorMSG = 'Error accessing sysfs file {}: {}'.format(filePath, e)
+        logger.exception(errorMSG)
+        return errorMSG, 1
 
 
-def get_data_multi(filePath):
+def get_data_multi(filePath, items):
     try:
-        ret = {}
+        data = {}
         with open(filePath) as f:
             for line in f:
                 key, val = line.strip().split()
                 if val.isdigit():
                     val = int(val)
-                ret[key] = val
-        return ret
-    except Exception:
-        logger.exception(u'Error accessing sysfs file')
-        raise
+                if key in items:
+                    data[key] = (val, 0)
+
+        for item in items:
+            if item not in data:
+                data[item] = ('Unknown key', 1)
+
+        return data
+    except Exception as e:
+        errorMSG = 'Error accessing sysfs file {}: {}'.format(filePath, e)
+        logger.exception(errorMSG)
+        data = {}
+        for item in items:
+            data[item] = (errorMSG, 1)
+        return data
 
 
-def get_data_selective(filePath, keyIndex=1, valIndex=2):
+def get_data_selective(filePath, keyIndex=1, valIndex=2, items={}):
     try:
-        ret = {}
+        data = {}
         with open(filePath) as f:
             for line in f:
                 chunks = line.strip().split(' ')
-                if len(chunks) >= (valIndex + 1):
-                    ret[chunks[keyIndex]] = chunks[valIndex]
-        return ret
-    except Exception:
-        logger.exception(u'Error accessing sysfs file')
-        raise
+                if len(chunks) >= (valIndex + 1) and chunks[keyIndex] in items:
+                    data[chunks[keyIndex]] = (chunks[valIndex], 0)
+
+        for item in items:
+            if item not in data:
+                data[item] = ('Unknown key', 1)
+
+        return data
+    except Exception as e:
+        errorMSG = 'Error accessing sysfs file {}: {}'.format(filePath, e)
+        logger.exception(errorMSG)
+        data = {}
+        for item in items:
+            data[item] = (errorMSG, 1)
+        return data
